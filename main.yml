@@ -1,7 +1,6 @@
 ---
 
 - hosts: testfileservers
-  remote_user: devopuser
  
   tasks:
 
@@ -13,8 +12,55 @@
           - "default.yml"
         paths: "./vars/"
 
-  - name: Deploy SSH-Keys to remote host
+  - name: debug
+    debug:
+      msg: System {{ inventory_hostname }} has user {{ account }}
+
+  - name: Deploy SSH-Keys to remote host (authorized_keys)
+    become: true
     authorized_key:
-      user: functionaccount
-      key: "{{ keystodeploy|map(attribute='sshkey')|join('\n') }}"
+      user: "{{ account }}"
+      key:  "{{ keystodeploy|map(attribute='sshkey')|join('\n') }}"
       exclusive: true
+
+  - name: check if private ssh key is present
+    stat: 
+      path: "ssh_keys/{{account}}_{{inventory_hostname}}"
+    register: privkey
+
+  - name: Deploy private SSH-Keys to remote host 
+    become: true
+    copy:
+        src: "ssh_keys/{{account}}_{{inventory_hostname}}"
+        dest: "/home/{{account}}/.ssh/id_rsa"
+    when: privkey.stat.exists == true
+
+  - name: chmod|chown ssh privkeys
+    file:
+      path: "/home/{{account}}/.ssh/id_rsa"
+      owner: "{{account}}"
+      group: "{{account}}"
+      mode: 0600
+    when: privkey.stat.exists == true
+
+  - name: check if private ssh key is present
+    stat: 
+      path: "ssh_keys/{{account}}_{{inventory_hostname}}.pub"
+    register: pubkey
+
+  - name: Deploy public SSH-Keys to remote host 
+    become: true
+    copy:
+        src: "ssh_keys/{{account}}_{{inventory_hostname}}.pub"
+        dest: "/home/{{account}}/.ssh/id_rsa.pub"
+    when: pubkey.stat.exists == true
+
+  - name: chmod|chown ssh pubkey
+    become: true
+    file:
+      path: "/home/{{account}}/.ssh/id_rsa.pub"
+      owner: "{{account}}"
+      group: "{{account}}"
+      mode: 0644
+    when: pubkey.stat.exists == true
+

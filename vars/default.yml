@@ -1,5 +1,7 @@
 ---
 
+account: functionaccount
+
 keystodeploy:
   - name: Petra Meier
     sshkey: ssh-rsa AAAABCe233e423...
